@@ -1,15 +1,13 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
 
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'unstop_super_secret_jwt_key_2026';
 
-// Admin Credentials
+// Hardcoded Admin Credentials
 const ADMIN_EMAIL = 'vipulphatangare3@gmail.com';
-// Pre-calculated bcrypt hash for '0831'
-const ADMIN_PASSWORD_HASH = bcrypt.hashSync('0831', 10);
+const ADMIN_PASSWORD = '0831';
 
 /**
  * POST /api/auth/login
@@ -24,14 +22,11 @@ router.post('/login', async (req, res) => {
     }
 
     const cleanEmail = email.toLowerCase().trim();
+    const cleanPassword = String(password).trim();
 
-    if (cleanEmail !== ADMIN_EMAIL) {
-      return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
-    }
-
-    const isMatch = await bcrypt.compare(password.trim(), ADMIN_PASSWORD_HASH);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
+    // Verify Hardcoded Email and Password
+    if (cleanEmail !== ADMIN_EMAIL || cleanPassword !== ADMIN_PASSWORD) {
+      return res.status(401).json({ success: false, message: 'Invalid admin email or password' });
     }
 
     // Generate JWT Token
