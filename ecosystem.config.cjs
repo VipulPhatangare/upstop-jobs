@@ -8,7 +8,7 @@ module.exports = {
       max_memory_restart: '1024M',
       env: {
         NODE_ENV: 'production',
-        PORT: 5000,
+        PORT: 3007,
         MONGODB_URI: 'mongodb://localhost:27017/unstop_jobs'
       }
     }
