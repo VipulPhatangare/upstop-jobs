@@ -5,9 +5,9 @@ const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'unstop_super_secret_jwt_key_2026';
 
-// Hardcoded Admin Credentials
-const ADMIN_EMAIL = 'vipulphatangare3@gmail.com';
-const ADMIN_PASSWORD = '0831';
+// Configurable Admin Credentials (via .env or defaults)
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'vipulphatangare3@gmail.com').toLowerCase().trim();
+const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '0831').trim();
 
 /**
  * POST /api/auth/login
@@ -21,10 +21,10 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail = String(email).toLowerCase().trim();
     const cleanPassword = String(password).trim();
 
-    // Verify Hardcoded Email and Password
+    // Verify Admin Email and Password
     if (cleanEmail !== ADMIN_EMAIL || cleanPassword !== ADMIN_PASSWORD) {
       return res.status(401).json({ success: false, message: 'Invalid admin email or password' });
     }
