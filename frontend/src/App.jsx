@@ -7,7 +7,8 @@ import FilterSidebar from './components/UserPortal/FilterSidebar';
 import AdminDashboard from './components/AdminPortal/AdminDashboard';
 import ScraperControlHub from './components/AdminPortal/ScraperControlHub';
 import JobManager from './components/AdminPortal/JobManager';
-import { Search, Briefcase, Bookmark, Sparkles, SlidersHorizontal, RefreshCw, LayoutGrid, List, AlertCircle } from 'lucide-react';
+import AdminLoginModal from './components/AdminPortal/AdminLoginModal';
+import { Search, Briefcase, Bookmark, Sparkles, SlidersHorizontal, RefreshCw, LayoutGrid, List, AlertCircle, LogOut, UserCheck } from 'lucide-react';
 
 export default function App() {
   // Restore State from localStorage on reload
@@ -20,6 +21,27 @@ export default function App() {
       return localStorage.getItem('unstop_admin_subtab') || 'dashboard'; 
     } catch (e) { return 'dashboard'; }
   });
+
+  // Admin JWT Auth State
+  const [adminToken, setAdminToken] = useState(() => {
+    try { return localStorage.getItem('unstop_admin_token') || null; } catch (e) { return null; }
+  });
+
+  const [adminUser, setAdminUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('unstop_admin_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) { return null; }
+  });
+
+  // Configure global axios auth header
+  useEffect(() => {
+    if (adminToken) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${adminToken}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  }, [adminToken]);
 
   // Data states
   const [jobs, setJobs] = useState([]);
@@ -167,6 +189,14 @@ export default function App() {
 
   const isJobSaved = (job) => {
     return savedJobs.some(j => (j._id && j._id === job._id) || j.unstopId === job.unstopId);
+  };
+
+  const handleLogout = () => {
+    setAdminToken(null);
+    setAdminUser(null);
+    localStorage.removeItem('unstop_admin_token');
+    localStorage.removeItem('unstop_admin_user');
+    delete axios.defaults.headers.common['Authorization'];
   };
 
   const displayedJobs = showSavedOnly ? savedJobs : jobs;
@@ -370,55 +400,87 @@ export default function App() {
           </div>
         )}
 
-        {/* ADMIN PORTAL VIEW */}
+        {/* ADMIN PORTAL VIEW (PROTECTED WITH JWT AUTH) */}
         {activeTab === 'admin' && (
           <div className="space-y-6">
 
-            {/* Admin Sub Navigation */}
-            <div className="flex items-center space-x-3 border-b border-slate-800 pb-3">
-              {[
-                { id: 'dashboard', label: 'Metrics Dashboard' },
-                { id: 'scraper', label: 'Scraper Control & Audit Logs' },
-                { id: 'manage', label: 'Job Manager (CRUD)' }
-              ].map(sub => (
-                <button
-                  key={sub.id}
-                  onClick={() => setAdminSubTab(sub.id)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                    adminSubTab === sub.id
-                      ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
-                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
-                  }`}
-                >
-                  {sub.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Subtab Contents */}
-            {adminSubTab === 'dashboard' && (
-              <AdminDashboard
-                stats={adminStats}
-              />
-            )}
-
-            {adminSubTab === 'scraper' && (
-              <ScraperControlHub
-                onScrapeFinished={() => {
-                  fetchJobs();
-                  fetchAdminStats();
+            {!adminToken ? (
+              <AdminLoginModal
+                onLoginSuccess={(token, user) => {
+                  setAdminToken(token);
+                  setAdminUser(user);
                 }}
               />
-            )}
+            ) : (
+              <div className="space-y-6">
 
-            {adminSubTab === 'manage' && (
-              <JobManager
-                jobs={jobs}
-                onJobUpdated={() => {
-                  fetchJobs();
-                  fetchAdminStats();
-                }}
-              />
+                {/* Admin Sub Navigation & User Header */}
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-3">
+                  <div className="flex items-center space-x-3">
+                    {[
+                      { id: 'dashboard', label: 'Metrics Dashboard' },
+                      { id: 'scraper', label: 'Scraper Control & Audit Logs' },
+                      { id: 'manage', label: 'Job Manager (CRUD)' }
+                    ].map(sub => (
+                      <button
+                        key={sub.id}
+                        onClick={() => setAdminSubTab(sub.id)}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                          adminSubTab === sub.id
+                            ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+                            : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
+                        }`}
+                      >
+                        {sub.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Admin Account & Logout Button */}
+                  <div className="flex items-center space-x-3 bg-slate-900/80 px-3.5 py-1.5 rounded-xl border border-slate-800">
+                    <div className="flex items-center space-x-2 text-xs">
+                      <UserCheck className="w-4 h-4 text-emerald-400" />
+                      <span className="font-bold text-slate-200">{adminUser?.name || 'Vipul Phatangare'}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">({adminUser?.email})</span>
+                    </div>
+
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 text-xs font-bold transition-all"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Subtab Contents */}
+                {adminSubTab === 'dashboard' && (
+                  <AdminDashboard
+                    stats={adminStats}
+                  />
+                )}
+
+                {adminSubTab === 'scraper' && (
+                  <ScraperControlHub
+                    onScrapeFinished={() => {
+                      fetchJobs();
+                      fetchAdminStats();
+                    }}
+                  />
+                )}
+
+                {adminSubTab === 'manage' && (
+                  <JobManager
+                    jobs={jobs}
+                    onJobUpdated={() => {
+                      fetchJobs();
+                      fetchAdminStats();
+                    }}
+                  />
+                )}
+
+              </div>
             )}
 
           </div>
