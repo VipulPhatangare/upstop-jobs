@@ -7,8 +7,27 @@ import FilterSidebar from './components/UserPortal/FilterSidebar';
 import AdminDashboard from './components/AdminPortal/AdminDashboard';
 import ScraperControlHub from './components/AdminPortal/ScraperControlHub';
 import JobManager from './components/AdminPortal/JobManager';
+import ApiAccessHub from './components/AdminPortal/ApiAccessHub';
 import AdminLoginModal from './components/AdminPortal/AdminLoginModal';
 import { Search, Briefcase, Bookmark, Sparkles, SlidersHorizontal, RefreshCw, LayoutGrid, List, AlertCircle, LogOut, UserCheck } from 'lucide-react';
+
+// React runs child effects BEFORE parent effects, so an admin panel that fetches
+// on mount can fire before the auth effect below has set axios.defaults — the
+// request then goes out unauthenticated and 401s. Reading the token per-request
+// removes the ordering dependency entirely (covers both reload and fresh login,
+// since the login modal writes localStorage before updating state).
+if (!axios.__unstopAuthInterceptor) {
+  axios.__unstopAuthInterceptor = true;
+  axios.interceptors.request.use((config) => {
+    try {
+      const token = localStorage.getItem('unstop_admin_token');
+      if (token && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (e) {}
+    return config;
+  });
+}
 
 export default function App() {
   // Restore State from localStorage on reload
@@ -420,7 +439,8 @@ export default function App() {
                     {[
                       { id: 'dashboard', label: 'Metrics Dashboard' },
                       { id: 'scraper', label: 'Scraper Control & Audit Logs' },
-                      { id: 'manage', label: 'Job Manager (CRUD)' }
+                      { id: 'manage', label: 'Job Manager (CRUD)' },
+                      { id: 'api', label: 'API Access & Docs' }
                     ].map(sub => (
                       <button
                         key={sub.id}
@@ -478,6 +498,10 @@ export default function App() {
                       fetchAdminStats();
                     }}
                   />
+                )}
+
+                {adminSubTab === 'api' && (
+                  <ApiAccessHub />
                 )}
 
               </div>

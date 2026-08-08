@@ -89,4 +89,8 @@ const jobSchema = new mongoose.Schema({
 jobSchema.index({ title: 1, 'organisation.name': 1, opportunityType: 1 }, { unique: true });
 jobSchema.index({ title: 'text', 'organisation.name': 'text', details: 'text', requiredSkills: 'text' });
 
+// Export API indexes: time-window filtering and stable range pagination
+jobSchema.index({ scrapedAt: -1 });
+jobSchema.index({ createdAt: -1, _id: -1 });
+
 export default mongoose.model('Job', jobSchema);

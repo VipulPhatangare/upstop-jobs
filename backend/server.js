@@ -1,9 +1,12 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import jobRoutes from './routes/jobRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import apiKeyRoutes from './routes/apiKeyRoutes.js';
+import publicApiRoutes from './routes/publicApiRoutes.js';
 import { seedSampleJobs, addLog } from './services/scraperService.js';
 
 dotenv.config();
@@ -21,11 +24,19 @@ app.set('dbConnected', false);
 app.set('memoryStore', memoryStore);
 
 app.use(cors());
-app.use(express.json());
+
+// gzip: the bulk-export payloads are HTML-heavy JSON and compress roughly 8-10x
+app.use(compression());
+app.use(express.json({ limit: '5mb' }));
+
+// Trust the reverse proxy so req.ip reflects the real client on the VPS
+app.set('trust proxy', true);
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/admin/api-key', apiKeyRoutes);
+app.use('/api/public/v1', publicApiRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -90,6 +101,11 @@ const startServer = async () => {
       console.log('Database empty. Auto-seeding initial job payload...');
       await seedSampleJobs(true, memoryStore);
     }
+
+    // Ensure the singleton public export API key exists
+    const ApiKey = (await import('./models/ApiKey.js')).default;
+    const apiKeyDoc = await ApiKey.ensureKey('system');
+    console.log(`🔑 Public Export API key ready (v${apiKeyDoc.version}) — view it in Admin → API Access & Docs`);
   } catch (err) {
     console.warn(`⚠️ Could not connect to local MongoDB: ${err.message}`);
     console.warn('⚡ Activating high-performance In-Memory Fallback Mode.');
